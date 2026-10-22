@@ -81,8 +81,11 @@ In our initial system proposal (*recognized as Best Project Proposal*), we hypot
 
 <div align="center">
   <img src="docs/assets/cw1_proposed_architecture.png" alt="Phase 1 Original Proposed Architecture" width="92%"/>
-  <p><em><strong>Figure 3:</strong> Phase 1 (CW1) Proposed Architecture: attempting to sparsify <code>Stella-1.5B</code> via a 6144-dim Contrastive Sparse Autoencoder (<code>CSR</code>, $k=32$) and pair <code>LACONIC-8B</code> with Lucene inverted indices.</em></p>
 </div>
+
+<br/>
+
+**Figure 3:** Phase 1 proposed architecture: attempting to sparsify `Stella-1.5B` via a 6144-dim Contrastive Sparse Autoencoder (`CSR`, $k=32$) and pair `LACONIC-8B` with Lucene inverted indices.
 
 ---
 
@@ -133,8 +136,11 @@ To resolve all three failure modes, we re-architected both tiers around **pre-tr
 <div align="center">
   <img src="docs/assets/arch_pro_design_diff.png" alt="Pro Tier Architectural Pivot" width="49%"/>
   <img src="docs/assets/arch_pro_hyde_golfer.png" alt="Pro Tier HyDE and GOLFer Pipeline" width="49%"/>
-  <p><em><strong>Figure 5 (Left):</strong> Structural transition from Phase 1 Lucene/LACONIC to Phase 3 Two-Stage FAISS + 1536d Reranker. <strong>Figure 6 (Right):</strong> Detailed Pro Tier dataflow showing <code>Qwen3-8B</code> HyDE synthesis, <code>GOLFer</code> lexical verification, dual embedding, $\alpha=0.70$ interpolation, Stage-1 256d filtering ($K=50$), and Stage-2 1536d reranking ($K=10$).</em></p>
 </div>
+
+<br/>
+
+**Figure 5 (Left):** Structural transition from Phase 1 Lucene/LACONIC to Phase 3 Two-Stage FAISS + 1536d Reranker. **Figure 6 (Right):** Detailed Pro Tier dataflow showing `Qwen3-8B` HyDE synthesis, `GOLFer` lexical verification, dual embedding, $\alpha=0.70$ interpolation, Stage-1 256d filtering ($K=50$), and Stage-2 1536d reranking ($K=10$).
 
 ---
 
@@ -192,8 +198,11 @@ and return the top $K_2 = 10$ documents sorted in descending order of $\text{sco
 <div align="center">
   <img src="docs/assets/stella_ablation_table.png" alt="Stella Model and Stage Ablation Study" width="49%"/>
   <img src="docs/assets/pro_ablation_table.png" alt="Pro Tier HyDE vs No-HyDE Ablation Study" width="49%"/>
-  <p><em><strong>Figure 7 (Left):</strong> Ablation across model scales (<code>Stella-400M</code> vs <code>Stella-1.5B</code>) and retrieval stages (1-Stage <code>256d</code> vs 2-Stage <code>256d &rarr; 1024d/1536d</code>). <strong>Figure 8 (Right):</strong> Ablation isolating the contribution of <code>Qwen3-8B</code> HyDE + <code>GOLFer</code> ($\alpha=0.70$) on the 2-Stage <code>Stella-1.5B</code> Pro pipeline.</em></p>
 </div>
+
+<br/>
+
+**Figure 7 (Left):** Ablation across model scales (`Stella-400M` vs `Stella-1.5B`) and retrieval stages (1-Stage `256d` vs 2-Stage `256d &rarr; 1024d/1536d`). **Figure 8 (Right):** Ablation isolating the contribution of `Qwen3-8B` HyDE + `GOLFer` ($\alpha=0.70$) on the 2-Stage `Stella-1.5B` Pro pipeline.
 
 ### 5.1 Stage-1 Candidate Pool Size ($K_1$) Sensitivity Analysis
 
