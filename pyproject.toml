@@ -1,0 +1,34 @@
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "scifact-tiered-neural-search"
+version = "1.0.0"
+description = "Dual-Tiered Scientific Claim Verification & Neural Information Retrieval Engine (Stella MRL + FAISS + Qwen3-8B HyDE + GOLFer) achieving 0.8063 nDCG@10 on BEIR SciFact."
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.10"
+authors = [
+    { name = "Andres Julian Herrera Medina" },
+    { name = "Kalliopi Platanaki" },
+    { name = "Numanurenci" },
+    { name = "Omar" }
+]
+keywords = [
+    "information-retrieval",
+    "neural-search",
+    "matryoshka-representation-learning",
+    "hyde",
+    "golfer",
+    "scifact",
+    "beir",
+    "faiss",
+    "stella",
+    "qwen3"
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+addopts = "-v"

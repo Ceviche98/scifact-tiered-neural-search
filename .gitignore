@@ -1,0 +1,22 @@
+# Byte-compiled / cache files
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# Local HuggingFace Hub cache & large Stage-2 MRL cache (distributed via GitHub Release v1.0.0)
+models/
+data_pro_tier/mrl_cache.pkl
+*.part
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# OS / IDE artifacts
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+scratch_frames/

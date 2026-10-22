@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    /* Reset and Base */
+    html, body {
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      margin: 0;
+      padding: 0 12px 0 0; /* Adding right padding pushes to the left slightly */
+      width: 100%;
+      height: 100vh;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: transparent !important;
+      overflow: hidden;
+      user-select: none;
+    }
+
+    :root {
+      --bg: #0e1117;
+      --shadow-dark: #07090b;
+      --shadow-light: #151a23;
+      --text-off: #4a4e59;
+      --neon-green: #39ff14;
+      --neon-glow: rgba(57, 255, 20, 0.6);
+    }
+
+    /* Outer Wrapper for Label [Slider] Label */
+    .wrapper {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-left: 5px;
+    }
+
+    /* Labels */
+    .mode-label {
+      font-size: 15px;
+      font-weight: 800;
+      letter-spacing: 1px;
+      transition: all 0.4s ease;
+      cursor: pointer;
+    }
+
+    /* Inactive text */
+    body.off #label-pro, 
+    body.on #label-fast {
+      color: var(--text-off);
+      text-shadow: none;
+    }
+
+    /* Active text with subtle neon glow */
+    body.off #label-fast, 
+    body.on #label-pro {
+      color: var(--neon-green);
+      text-shadow: 0 0 8px var(--neon-glow);
+    }
+
+    /* The main toggle track */
+    .toggle-container {
+      position: relative;
+      width: 96px;    /* Scaled down from 110px */
+      height: 44px;   /* Scaled down from 52px */
+      border-radius: 22px; /* Half of height */
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      background: #191c24; /* Slightly lighter grey than the #0e1117 background */
+      box-shadow: 3px 3px 6px var(--shadow-dark), 
+                 -3px -3px 6px var(--shadow-light);
+    }
+
+    /* The sliding thumb */
+    .thumb {
+      position: absolute;
+      width: 36px;  /* Scaled down from 44px */
+      height: 36px;
+      border-radius: 50%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: var(--bg);
+      box-shadow: 4px 4px 8px var(--shadow-dark), 
+                 -4px -4px 8px var(--shadow-light);
+      transition: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+      z-index: 2;
+    }
+
+    body.off .thumb {
+      left: 4px;
+    }
+
+    body.on .thumb {
+      left: 56px; /* 96 track - 36 thumb - 4 padding */
+    }
+
+    /* SVG Settings — active thumb */
+    .thumb svg {
+      width: 24px;
+      height: 24px;
+      transition: all 0.4s ease;
+      filter: drop-shadow(0 0 3px var(--neon-green)) drop-shadow(0 0 6px var(--neon-green));
+    }
+
+    .thumb svg .icon-path {
+      stroke: var(--neon-green);
+      fill: none;
+    }
+
+    /* Ghost icon — opposite mode, dimmed, on the vacant side of the track */
+    .ghost {
+      position: absolute;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 1;
+      transition: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+      pointer-events: none;
+    }
+
+    /* Ghost sits on the right (PRO side) when FAST is active */
+    body.off .ghost { left: 56px; }
+    /* Ghost sits on the left (FAST side) when PRO is active */
+    body.on  .ghost { left: 4px; }
+
+    .ghost svg {
+      width: 18px; /* Slightly scaled down from 20px */
+      height: 18px;
+      filter: none;
+      opacity: 0.55;
+    }
+
+    .ghost svg .icon-path {
+      stroke: var(--text-off);
+      fill: none;
+    }
+
+  </style>
+</head>
+<body class="off">
+
+  <div class="wrapper">
+    <div class="mode-label" id="label-fast">FAST</div>
+    
+    <div class="toggle-container" id="toggle-switch">
+      <div class="thumb" id="thumb"></div>
+      <div class="ghost" id="ghost"></div>
+    </div>
+    
+    <div class="mode-label" id="label-pro">PRO</div>
+  </div>
+
+  <script>
+    // Lightweight, completely offline Streamlit Bridge
+    const Streamlit = {
+      setComponentReady: function() {
+        window.parent.postMessage({
+            isStreamlitMessage: true,
+            type: "streamlit:componentReady",
+            apiVersion: 1
+        }, "*");
+      },
+      setFrameHeight: function(height) {
+        window.parent.postMessage({
+            isStreamlitMessage: true,
+            type: "streamlit:setFrameHeight",
+            height: height
+        }, "*");
+      },
+      setComponentValue: function(value) {
+        window.parent.postMessage({
+            isStreamlitMessage: true,
+            type: "streamlit:setComponentValue",
+            value: value
+        }, "*");
+      }
+    };
+
+    const svgLightning = `<svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path class="icon-path" d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path></svg>`;
+    const svgCrown = `<svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path class="icon-path" d="M2 20h20M4 16l3-9 5 5 5-5 3 9H4z"></path></svg>`;
+
+    let isPro = false;
+    const body = document.body;
+    const thumb = document.getElementById("thumb");
+    const ghost = document.getElementById("ghost");
+    const toggleContainer = document.getElementById("toggle-switch");
+
+    function renderUI() {
+      if (isPro) {
+        body.className = "on";
+        thumb.innerHTML = svgCrown;
+        ghost.innerHTML = svgLightning; // FAST ghost on the left
+      } else {
+        body.className = "off";
+        thumb.innerHTML = svgLightning;
+        ghost.innerHTML = svgCrown;    // PRO ghost on the right
+      }
+    }
+
+    // Initialize UI locally
+    renderUI();
+
+    // Re-render when clicked and sync state to python backend
+    toggleContainer.addEventListener("click", () => {
+      isPro = !isPro;
+      renderUI();
+      Streamlit.setComponentValue(isPro);
+    });
+
+    // Clicking the FAST label directly sets Fast mode
+    document.getElementById("label-fast").addEventListener("click", () => {
+      if (isPro) {
+        isPro = false;
+        renderUI();
+        Streamlit.setComponentValue(isPro);
+      }
+    });
+
+    // Clicking the PRO label directly sets Pro mode
+    document.getElementById("label-pro").addEventListener("click", () => {
+      if (!isPro) {
+        isPro = true;
+        renderUI();
+        Streamlit.setComponentValue(isPro);
+      }
+    });
+
+    // Listen to Streamlit for Initial State Injection
+    window.addEventListener("message", function(event) {
+      if (event.data.type === "streamlit:render") {
+        if (!window.rendered) {
+           let args = event.data.args;
+           if (args && typeof args.default !== 'undefined') {
+              isPro = args.default;
+              renderUI();
+           }
+           window.rendered = true;
+        }
+        Streamlit.setFrameHeight(60);
+      }
+    });
+
+    // Declare component is ready for business
+    Streamlit.setComponentReady();
+    Streamlit.setFrameHeight(60);
+  </script>
+</body>
+</html>
