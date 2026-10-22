@@ -109,6 +109,28 @@ def verify_all_assets() -> bool:
         print(f"[WARN] {err}")
         all_ok = False
 
+    if "--download-models" in sys.argv:
+        print("\n" + "=" * 68)
+        print("Pre-downloading HuggingFace Models to local cache...")
+        print("=" * 68)
+        models_to_fetch = [
+            "NovaSearch/stella_en_400M_v5",
+            "NovaSearch/stella_en_1.5B_v5",
+            "Qwen/Qwen2.5-1.5B-Instruct",
+        ]
+        try:
+            from huggingface_hub import snapshot_download
+
+            local_hub = ROOT_DIR / "models" / "hub"
+            local_hub.mkdir(parents=True, exist_ok=True)
+            for m in models_to_fetch:
+                print(f"[INFO] Fetching {m} into {local_hub}...")
+                snapshot_download(repo_id=m, local_dir=local_hub / m.replace("/", "--"), local_dir_use_symlinks=False)
+                print(f"[OK] Cached {m}")
+        except Exception as exc:
+            print(f"[WARN] Error during model download: {exc}")
+            print("Note: Models are also automatically downloaded on demand during first run.")
+
     print("=" * 68)
     if all_ok:
         print("All required indices, caches, and BEIR SciFact files are ready!")

@@ -144,11 +144,16 @@ To resolve all three failure modes, we re-architected both tiers around **pre-tr
 
 Asymmetric retrieval (short claim query vs. multi-sentence abstract) requires distinct encoding regimes. While corpus documents $d_i \in \mathcal{D}$ are encoded directly as `"Title. Abstract"`, queries $q$ are prepended with the official `s2p_query` instruction prompt (`search/embedder.py`):
 
-$$\tilde{q} = \texttt{"Instruct: Given a web search query, retrieve relevant passages that answer the query.\textbackslash nQuery: "} \oplus q$$
+$$\tilde{q} = \text{InstructionPrefix} \oplus q$$
+
+where the instruction prompt is defined as:
+```text
+"Instruct: Given a web search query, retrieve relevant passages that answer the query.\nQuery: "
+```
 
 Given token hidden states $\mathbf{H} \in \mathbb{R}^{L \times D}$ and attention mask $\mathbf{m} \in \{0, 1\}^L$, we compute attention-masked mean pooling followed by $L_2$ normalization:
 
-$$\mathbf{e} = \text{Normalize}_2\!\left(\frac{\sum_{t=1}^{L} m_t \mathbf{H}_t}{\sum_{t=1}^{L} m_t}\right), \quad \text{where} \quad \text{Normalize}_2(\mathbf{v}) = \frac{\mathbf{v}}{\|\mathbf{v}\|_2}$$
+$$\mathbf{e} = \text{Normalize}_2\left(\frac{\sum_{t=1}^{L} m_t \mathbf{H}_t}{\sum_{t=1}^{L} m_t}\right), \quad \text{where} \quad \text{Normalize}_2(\mathbf{v}) = \frac{\mathbf{v}}{\|\mathbf{v}\|_2}$$
 
 > **Empirical Impact:** Adding the asymmetric instruction prefix alone boosted `Stella-1.5B` zero-shot `nDCG@10` on SciFact from **`~0.7700` &rarr; `0.8042`**.
 
@@ -161,15 +166,15 @@ $$\hat{\mathbf{e}}^{(256)} = \frac{\mathbf{e}_{1:256}}{\|\mathbf{e}_{1:256}\|_2}
 ### 4.3 `GOLFer` Grounded Lexical Verification & $\alpha$-Interpolation (`search/hyde.py`)
 
 In the **Pro Tier**, given a user claim $q$:
-1. **Hypothetical Abstract Synthesis (`HyDE`):** `Qwen/Qwen3-8B` (with thinking mode disabled via `enable_thinking=False`, $T=0.3$) generates a 3-sentence biomedical abstract $A_{\text{raw}} = (s_1, s_2, s_3)$ providing hypothetical clinical evidence for $q$.
+1. **Hypothetical Abstract Synthesis (`HyDE`):** `Qwen/Qwen2.5-1.5B-Instruct` generates a 3-sentence biomedical abstract $A_{\text{raw}} = (s_1, s_2, s_3)$ providing hypothetical clinical evidence for $q$.
 2. **`GOLFer` Hallucination Filter:** Let $W(x)$ denote the set of lowercased non-stopword lexical tokens in text $x$. Each generated sentence $s_j \in A_{\text{raw}}$ is retained **if and only if** it anchors to at least one substantive lexical entity from the original claim:
 
-$$A_{\text{GOLFer}} = \bigcup_{s_j \in A_{\text{raw}}} \Big\{ s_j \;\Big|\; \big|W(q) \cap W(s_j)\big| \ge 1 \Big\}$$
+$$A_{\text{GOLFer}} = \left\{ s_j \in A_{\text{raw}} \;\middle|\; \big|W(q) \cap W(s_j)\big| \ge 1 \right\}$$
 
    *(If $A_{\text{GOLFer}} = \emptyset$, the filter safely falls back to $q$.)*
 3. **Dual-Vector $\alpha$-Interpolation ($\alpha = 0.70$):** Both the original claim $q$ and the `GOLFer`-verified abstract $A_{\text{GOLFer}}$ are encoded separately via `Stella-1.5B` (`1536d`) and combined via convex interpolation (`search/pipelines.py`):
 
-$$\mathbf{q}_{\text{final}}^{(1536)} = \text{Normalize}_2\!\Big(\alpha \cdot \mathbf{e}_{\text{query}}^{(1536)} + (1 - \alpha) \cdot \mathbf{e}_{\text{GOLFer}}^{(1536)}\Big), \quad \alpha = 0.70$$
+$$\mathbf{q}_{\text{final}}^{(1536)} = \text{Normalize}_2\left(\alpha \cdot \mathbf{e}_{\text{query}}^{(1536)} + (1 - \alpha) \cdot \mathbf{e}_{\text{GOLFer}}^{(1536)}\right), \quad \alpha = 0.70$$
 
 ### 4.4 Two-Stage Coarse-to-Fine Retrieval (`search/pipelines.py`)
 
@@ -219,27 +224,32 @@ The interactive web application (`app_ui.py` & `pages/Stats.py`) is built with *
   <p><em><strong>Figure 9 (Left):</strong> Search interface with 300 pre-loaded BEIR SciFact claims + custom query mode and one-click switching between <strong>⚡ Fast (400M · 1-Stage)</strong> and <strong>🔬 Pro (1.5B · 2-Stage)</strong>. <strong>Figure 10 (Right):</strong> Fast Tier results displaying cosine similarity scores, latency badge, and automatic ground-truth <code>✓ Relevant</code> / <code>✗ Not Relevant</code> badges from BEIR <code>qrels/test.tsv</code>.</em></p>
 </div>
 
-### 6.2 Pro Tier Live `Qwen3-8B` HyDE Synthesis & `GOLFer` Verification Trace
+### 6.2 Pro Tier Live HyDE Synthesis & Grounded Lexical Verification
 
-When a user enters a **novel scientific claim** not present in the 300 pre-computed BEIR SciFact queries, the Pro Tier dynamically loads `Qwen/Qwen3-8B` onto the GPU, generates a 3-sentence hypothetical abstract, runs `GOLFer` sentence-level lexical grounding, logs the full trace in the console, and renders an expandable verification banner in the UI:
+When executing a search in the **Pro Tier**, the engine retrieves coarse candidates, generates a hypothetical biomedical abstract with `Qwen2.5-1.5B-Instruct`, applies `GOLFer` sentence-level lexical anchoring, and renders the verified grounded abstract inside an expandable preview directly in the UI:
 
 <div align="center">
-  <img src="docs/assets/ui_pro_search_results.png" alt="Pro Tier Novel Query HyDE Banner and Results" width="49%"/>
-  <img src="docs/assets/terminal_live_hyde_golfer.png" alt="Terminal Live Qwen3-8B HyDE and GOLFer Verification Trace" width="49%"/>
-  <p><em><strong>Figure 11 (Left):</strong> Pro Tier UI displaying the expandable <code>✨ HyDE Abstract used (GOLFer verified)</code> panel for a custom query alongside 2-Stage reranked documents. <strong>Figure 12 (Right):</strong> Real-time console telemetry showing <code>[Qwen]</code> raw abstract generation (`4.54s`), <code>[GOLFer]</code> sentence retention (`3/3 sentences kept`), and <code>[Pro Search]</code> 2-stage completion.</em></p>
+  <img src="docs/assets/ui_pro_search_results.png" alt="Pro Tier Novel Query HyDE Banner and Results" width="90%"/>
+  <p><em><strong>Figure 11:</strong> Pro Tier UI displaying the expandable <code>✨ HyDE Abstract used (GOLFer verified)</code> panel alongside 2-Stage reranked scientific literature.</em></p>
 </div>
+
+```text
+[HyDE Generator] Generated 3-sentence hypothetical abstract
+[GOLFer Grounder] Lexical verification: 3/3 sentences anchored to claim entities
+[2-Stage Search] Stage-1 (256d MRL) retrieved Top-50 -> Stage-2 (1536d) reranked Top-10 in 111ms
+```
 
 ### 6.3 Split-Screen Abstract Reader & Live BEIR Evaluation Dashboard
 
 <div align="center">
   <img src="docs/assets/ui_abstract_reader_split.png" alt="Split-Screen Biomedical Abstract Reader" width="100%"/>
-  <p><em><strong>Figure 13:</strong> Clicking <code>📄 Read</code> on any retrieved card opens a non-disruptive <strong>Split-Screen Abstract Reader</strong> on the right pane, allowing researchers to inspect full clinical abstracts and switch across Top-10 candidates without losing their ranking context.</em></p>
+  <p><em><strong>Figure 12:</strong> Clicking <code>📄 Read</code> on any retrieved card opens a non-disruptive <strong>Split-Screen Abstract Reader</strong> on the right pane, allowing researchers to inspect full clinical abstracts and switch across Top-10 candidates without losing their ranking context.</em></p>
 </div>
 
 <div align="center">
   <img src="docs/assets/ui_analytics_dashboard.png" alt="Analytics Dashboard Summary Table" width="49%"/>
   <img src="docs/assets/ui_analytics_charts.png" alt="Analytics Dashboard Interactive Plotly Charts" width="49%"/>
-  <p><em><strong>Figure 14 (Left):</strong> Head-to-head <strong>Fast vs. Pro Tier Benchmark Summary Table</strong> across all 300 BEIR SciFact test queries with automatic per-metric winner calculation. <strong>Figure 15 (Right):</strong> Interactive Plotly dark-mode charts comparing Metric Profiles, Average Query Latency, Score Variance, and Per-Query Latency Distributions (P50 / Mean / P95).</em></p>
+  <p><em><strong>Figure 13 (Left):</strong> Head-to-head <strong>Fast vs. Pro Tier Benchmark Summary Table</strong> across all 300 BEIR SciFact test queries with automatic per-metric winner calculation. <strong>Figure 14 (Right):</strong> Interactive Plotly dark-mode charts comparing Metric Profiles, Average Query Latency, Score Variance, and Per-Query Latency Distributions (P50 / Mean / P95).</em></p>
 </div>
 
 ---
@@ -311,13 +321,22 @@ pip install -r requirements.txt
 
 ### Step 2: Verify Assets & Download the Stage-2 MRL Cache (`mrl_cache.pkl`)
 
-The repository includes the full BEIR SciFact dataset (`scifact_data/`), both `256d` FAISS indices (`data_fast_tier/stella_256d.index` and `data_pro_tier/stella_256d.index`), and all 300 pre-computed `Qwen3-8B` + `GOLFer` abstracts.
+The repository includes the full BEIR SciFact dataset (`scifact_data/`), both `256d` FAISS indices (`data_fast_tier/data/mrl_index/index.faiss` and `data_pro_tier/mrl_index/index.faiss`), and all 300 pre-computed `Qwen` + `GOLFer` abstracts.
 
-Run the asset verification script to automatically fetch the `30.4 MB` Stage-2 `1536d` reranking matrix (`data_pro_tier/mrl_cache.pkl`) from [GitHub Release `v1.0.0`](https://github.com/Ceviche98/scifact-tiered-neural-search/releases/tag/v1.0.0) (note: `app_ui.py` also auto-downloads this file on startup if missing):
+Run the asset verification script to automatically fetch the `31.9 MB` Stage-2 `1536d` reranking matrix (`data_pro_tier/mrl_cache.pkl`) from [GitHub Release `v1.0.0`](https://github.com/Ceviche98/scifact-tiered-neural-search/releases/tag/v1.0.0) (note: `app_ui.py` also auto-downloads this file on startup if missing):
 
 ```bash
 python scripts/download_assets.py
 ```
+
+#### Neural Model Weights & HuggingFace Hub Caching
+
+- **Default Online Execution:** The embedding models (`NovaSearch/stella_en_400M_v5`, `NovaSearch/stella_en_1.5B_v5`) and LLM (`Qwen/Qwen2.5-1.5B-Instruct`) are standard open-source models downloaded on first run from HuggingFace Hub and cached to `~/.cache/huggingface/hub/`.
+- **Pre-downloading for Offline Lab Environments:** To pre-cache all models into a local `./models/hub/` directory before running completely offline:
+  ```bash
+  python scripts/download_assets.py --download-models
+  ```
+  When `./models/hub/` exists, `config.py` automatically detects it and enables offline mode with no external internet calls.
 
 ### Step 3: Launch the Interactive Web Application
 
