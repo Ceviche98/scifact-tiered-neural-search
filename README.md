@@ -33,7 +33,7 @@
 
 <div align="center">
   <img src="docs/assets/demo_search_walkthrough.gif" alt="SciFact Tiered Neural Search Walkthrough" width="100%"/>
-  <p><em><strong>Figure 1:</strong> End-to-end interactive workflow — switching between <strong>Fast Tier</strong> (1-Stage 256d MRL, ~29ms) and <strong>Pro Tier</strong> (2-Stage 256d &rarr; 1536d reranking with <code>Qwen3-8B</code> HyDE + <code>GOLFer</code> verification), inspecting ground-truth <code>qrels</code> badges, and reading side-by-side biomedical abstracts in the split-screen viewer.</em></p>
+  <p><em><strong>Figure 1:</strong> End-to-end interactive workflow: switching between <strong>Fast Tier</strong> (1-Stage 256d MRL, ~29ms) and <strong>Pro Tier</strong> (2-Stage 256d &rarr; 1536d reranking with <code>Qwen3-8B</code> HyDE + <code>GOLFer</code> verification), inspecting ground-truth <code>qrels</code> badges, and reading side-by-side biomedical abstracts in the split-screen viewer.</em></p>
 </div>
 
 <div align="center">
@@ -75,13 +75,13 @@ We designed and evaluated a **Dual-Tiered Neural Retrieval Architecture** on the
 
 This project evolved across three distinct engineering phases (Coursework 1 System Proposal &rarr; Coursework 2 Empirical Investigation &rarr; Final Production Engine).
 
-### Phase 1: Initial Proposal — Sparse Autoencoders (`CSR`) & `LACONIC-8B` Over Inverted Indices
+### Phase 1: Initial Proposal: Sparse Autoencoders (`CSR`) & `LACONIC-8B` Over Inverted Indices
 
 In our initial system proposal (*recognized as Best Project Proposal*), we hypothesized that dense embeddings (`Stella-1.5B`) and LLM-backed representations (`LACONIC-8B`) could be projected into high-dimensional sparse lexical/latent spaces and searched via **Apache Lucene inverted indices**:
 
 <div align="center">
   <img src="docs/assets/cw1_proposed_architecture.png" alt="Phase 1 Original Proposed Architecture" width="92%"/>
-  <p><em><strong>Figure 3:</strong> Phase 1 (CW1) Proposed Architecture — attempting to sparsify <code>Stella-1.5B</code> via a 6144-dim Contrastive Sparse Autoencoder (<code>CSR</code>, $k=32$) and pair <code>LACONIC-8B</code> with Lucene inverted indices.</em></p>
+  <p><em><strong>Figure 3:</strong> Phase 1 (CW1) Proposed Architecture: attempting to sparsify <code>Stella-1.5B</code> via a 6144-dim Contrastive Sparse Autoencoder (<code>CSR</code>, $k=32$) and pair <code>LACONIC-8B</code> with Lucene inverted indices.</em></p>
 </div>
 
 ---
@@ -121,13 +121,13 @@ flowchart TD
 
 ---
 
-### Phase 3: Final Production Architecture — Matryoshka Two-Stage Retrieval + `GOLFer` Grounded HyDE
+### Phase 3: Final Production Architecture: Matryoshka Two-Stage Retrieval + `GOLFer` Grounded HyDE
 
 To resolve all three failure modes, we re-architected both tiers around **pre-trained Matryoshka Representation Learning (`Stella v5`)**, **in-memory `FAISS IndexFlatIP`**, **Two-Stage Coarse-to-Fine Reranking**, and **GOLFer-verified 70/30 $\alpha$-interpolation**:
 
 <div align="center">
   <img src="docs/assets/arch_final_pipeline.png" alt="Final Production Architecture" width="95%"/>
-  <p><em><strong>Figure 4:</strong> Phase 3 Final Production Architecture — Dual-tier routing between <strong>Fast Tier</strong> (<code>Stella-400M</code> 1-Stage 256d MRL FAISS) and <strong>Pro Tier</strong> (<code>Stella-1.5B</code> 2-Stage 256d &rarr; 1536d reranking with <code>Qwen3-8B</code> HyDE + <code>GOLFer</code>).</em></p>
+  <p><em><strong>Figure 4:</strong> Phase 3 Final Production Architecture: Dual-tier routing between <strong>Fast Tier</strong> (<code>Stella-400M</code> 1-Stage 256d MRL FAISS) and <strong>Pro Tier</strong> (<code>Stella-1.5B</code> 2-Stage 256d &rarr; 1536d reranking with <code>Qwen3-8B</code> HyDE + <code>GOLFer</code>).</em></p>
 </div>
 
 <div align="center">
@@ -205,9 +205,9 @@ We evaluated passing $K_1 \in \{10, 25, 40, 50, 75, 100\}$ candidates from the `
 
 | Query Expansion Strategy | Blending Weight ($\alpha$) | Grounding Filter | Backbone Retriever | nDCG@10 | Recall@10 | MAP@10 | Qualitative Behavior |
 | :--- | :---: | :---: | :--- | :---: | :---: | :---: | :--- |
-| **No HyDE (Query Only)** | $\alpha = 1.00$ | — | `LACONIC-8B` | `0.6487` | `0.8199` | `0.6012` | Lexical match only; misses paraphrased claims |
+| **No HyDE (Query Only)** | $\alpha = 1.00$ | - | `LACONIC-8B` | `0.6487` | `0.8199` | `0.6012` | Lexical match only; misses paraphrased claims |
 | **Naive HyDE (Equal Blend)** | $\alpha = 0.50$ | ❌ None | `LACONIC-8B` | `0.5819` | `0.7859` | `0.5310` | Severe **semantic drift** (`-0.0668 nDCG@10`) |
-| **No HyDE (Query Only)** | $\alpha = 1.00$ | — | `Stella-1.5B` (2-Stage) | `0.8045` | `0.9283` | `0.7604` | Strong zero-shot dense retrieval baseline |
+| **No HyDE (Query Only)** | $\alpha = 1.00$ | - | `Stella-1.5B` (2-Stage) | `0.8045` | `0.9283` | `0.7604` | Strong zero-shot dense retrieval baseline |
 | **HyDE + GOLFer ( Production)** | **$\alpha = 0.70$** | **✅ `GOLFer`** | **`Stella-1.5B` (2-Stage)** | **`0.8063`** | **`0.9300`** | **`0.7763`** | **+1.59 pts MAP@10**; rescues complex paraphrased queries |
 
 ---
